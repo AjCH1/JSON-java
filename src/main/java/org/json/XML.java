@@ -8,7 +8,9 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.Stack;
 
 
 /**
@@ -253,7 +255,6 @@ public class XML {
         // <<
 
         token = x.nextToken();
-
         // <!
 
         if (token == BANG) {
@@ -266,6 +267,7 @@ public class XML {
                 x.back();
             } else if (c == '[') {
                 token = x.nextToken();
+                
                 if ("CDATA".equals(token)) {
                     if (x.next() == '[') {
                         string = x.nextCDATA();
@@ -280,6 +282,7 @@ public class XML {
             i = 1;
             do {
                 token = x.nextMeta();
+                
                 if (token == null) {
                     throw x.syntaxError("Missing '>' after '<!'.");
                 } else if (token == LT) {
@@ -290,15 +293,15 @@ public class XML {
             } while (i > 0);
             return false;
         } else if (token == QUEST) {
-
             // <?
             x.skipPast("?>");
             return false;
         } else if (token == SLASH) {
-
             // Close tag </
-
             token = x.nextToken();
+            
+            System.out.println("END TOKEN: " + token + " NAME: " + name);
+          
             if (name == null) {
                 throw x.syntaxError("Mismatched close tag " + token);
             }
@@ -308,6 +311,7 @@ public class XML {
             if (x.nextToken() != GT) {
                 throw x.syntaxError("Misshaped close tag");
             }
+
             return true;
 
         } else if (token instanceof Character) {
@@ -317,18 +321,25 @@ public class XML {
 
         } else {
             tagName = (String) token;
+
+            System.out.println("TAGNAME: " + tagName);
+
             token = null;
             jsonObject = new JSONObject();
             boolean nilAttributeFound = false;
             xmlXsiTypeConverter = null;
+
             for (;;) {
                 if (token == null) {
                     token = x.nextToken();
                 }
                 // attribute = value
                 if (token instanceof String) {
+                  
                     string = (String) token;
                     token = x.nextToken();
+                    
+
                     if (token == EQ) {
                         token = x.nextToken();
                         if (!(token instanceof String)) {
@@ -383,12 +394,16 @@ public class XML {
                     // Content, between <...> and </...>
                     for (;;) {
                         token = x.nextContent();
+
                         if (token == null) {
                             if (tagName != null) {
                                 throw x.syntaxError("Unclosed tag " + tagName);
                             }
                             return false;
                         } else if (token instanceof String) {
+
+                            System.out.println("STRING CONTENT: " + token);
+
                             string = (String) token;
                             if (string.length() > 0) {
                                 if(xmlXsiTypeConverter != null) {
@@ -401,6 +416,11 @@ public class XML {
                             }
 
                         } else if (token == LT) {
+
+                          System.out.println("NESTED CONTENT: " + token);
+                          
+                          
+
                             // Nested element
                             if (parse(x, jsonObject, tagName, config)) {
                                 if (config.getForceList().contains(tagName)) {
@@ -581,6 +601,8 @@ public class XML {
         return toJSONObject(string, XMLParserConfiguration.ORIGINAL);
     }
 
+    
+
     /**
      * Convert a well-formed (but not necessarily valid) XML into a
      * JSONObject. Some information may be lost in this transformation because
@@ -652,6 +674,7 @@ public class XML {
     public static JSONObject toJSONObject(Reader reader, XMLParserConfiguration config) throws JSONException {
         JSONObject jo = new JSONObject();
         XMLTokener x = new XMLTokener(reader);
+        
         while (x.more()) {
             x.skipPast("<");
             if(x.more()) {
@@ -660,6 +683,173 @@ public class XML {
         }
         return jo;
     }
+
+    //------------------------------
+    //Milestone 2 Overloaded Functions
+
+    //modify reader string
+    public static JSONObject toJSONObject(Reader reader, JSONPointer path) {
+
+      long startTime = System.currentTimeMillis();
+
+        JSONObject jo = new JSONObject();
+        XMLTokener y = new XMLTokener(reader);
+        String[] pathWay = path.toString().split("/"); //pathWay[0] is empty string so skip
+        Stack<String> stack = new Stack<String>(); //store path
+
+        String lastKeyPath = "";
+        StringBuilder sb = new StringBuilder();
+
+        for(int i = pathWay.length-1; i >= 1; i--){
+          //check if it is a number or a string
+          //if number, get the stack topmost element and repeat it n times
+          stack.push(pathWay[i]);
+        }
+          
+        //skip parts of string in beginning
+        while (y.more()) {
+          y.skipPast("<");
+
+          if(y.more()){
+            Object tagName = y.nextString('>');
+        
+            if(tagName instanceof String && stack.size() > 0){
+            
+              //System.out.println("TAG: " + tagName + " PEEK: " + stack.peek() + " SIZE: " + stack.size());
+              
+              if(tagName.equals(stack.peek())){
+                stack.pop();
+
+                if(stack.isEmpty()){
+                  String tag = "<" + tagName + ">";
+                  sb.append(tag);
+
+                  lastKeyPath = (String)tagName;
+                  break;
+                }
+              }
+               
+            }
+          }
+        }
+
+        //does not account for array index yet
+        while(y.more()){
+          String content = y.nextContent().toString();
+          sb.append(content);
+          System.out.println(content);
+          //closing tag /...>
+          if(content.contains("/"+lastKeyPath+">")){
+            break;
+          }
+        }
+        
+        System.out.println(sb);
+
+        /* 
+        //if stack size is empty?
+        while(y.more()){
+          y.skipPast("<");
+            sb.append("<");
+
+   
+          String content = y.nextContent().toString();
+          sb.append(content);
+
+          System.out.println(content);
+
+          //closing tag /...>
+          if(content.contains("/"+lastKeyPath+">")){
+            break;
+          }
+          else{
+  
+          }
+        }
+        */
+
+        System.out.println(sb);
+
+        //use modified string
+        XMLTokener x = new XMLTokener(new StringReader(sb.toString()));
+
+        //XMLTokener x = new XMLTokener(reader);
+
+        try{
+          while (x.more()) {
+            x.skipPast("<");
+              if(x.more()) {
+                  parse(x, jo, null, XMLParserConfiguration.ORIGINAL);
+              }
+          }
+        }
+        catch(Exception e){
+          System.out.println("EXCEPTION");
+        }
+         
+        /* 
+        Object object = path.queryFrom(jo);
+        if(!(object instanceof JSONObject)){
+          jo.put(stack.peek(), object);
+        }
+        */
+
+        //time
+        long endTime = System.currentTimeMillis();
+        System.out.println("Time: "+(endTime - startTime) + " ms");
+ 
+        return jo;
+    }
+
+
+    static JSONObject toJSONObject(Reader reader, JSONPointer path, JSONObject replacement) {
+      JSONObject jo = new JSONObject();
+
+      //parse entire reader file as a JSONObject then insert the replacement?
+      //then use helper function i think
+
+      return jo;
+    }
+
+    //helper function for above function
+    public static void updateSubObjectInJSON(JSONObject toJson, JSONObject newJsonObject, ArrayList<String> keyPath){
+      //recursively go through the JSON data
+      String key = keyPath.get(0);
+
+      if(keyPath.size() == 1){
+          //replace with new sub object
+          toJson.put(key, newJsonObject);
+          return;
+      }
+
+      if (toJson.get(key) instanceof JSONObject) {
+          keyPath.remove(0);
+          updateSubObjectInJSON((JSONObject) toJson.get(key), newJsonObject, keyPath);
+      }
+      else if (toJson.get(key) instanceof JSONArray){
+          //access next arr to get the index
+          int index = Integer.valueOf(keyPath.remove(1));
+          keyPath.remove(0);
+
+          //check if this is the last arr element
+          if(keyPath.size() == 0){
+              //for array, we create a JSONArray to access and replace the indexed value with the JSONObject
+              JSONArray toJsonArr = (JSONArray) toJson.get(key);
+              toJsonArr.put(index, newJsonObject);
+              return;
+          }
+
+          updateSubObjectInJSON(((JSONArray) toJson.get(key)).getJSONObject(index), newJsonObject, keyPath);
+      }
+      else{
+          keyPath.remove(0);
+          updateSubObjectInJSON(toJson, newJsonObject, keyPath);
+      }
+  
+    }
+
+
+    //------------------------MILESTONE 2 FUNCTIONS ABOVE-------------------------------
 
     /**
      * Convert a well-formed (but not necessarily valid) XML string into a
