@@ -55,21 +55,21 @@ public class MilestoneTests {
 
     @Test
     public void testXMLFile() throws Exception{
-       StringBuilder sb = new StringBuilder(); //store XML file as a stringbuilder
+       StringBuilder bc = new StringBuilder(); //store XML file as a stringbuilder
 
        BufferedReader br = new BufferedReader(new FileReader("src/test/java/org/json/junit/book.xml"));
         String line = br.readLine();
         while(line != null){
-            sb.append(line);
+            bc.append(line);
             line = br.readLine();
         }
 
-        String xmlString = sb.toString();
+        String xmlStringBC = bc.toString();
 
-        JSONObject jsonObject = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/"));
+        JSONObject jsonObject = XML.toJSONObject(new StringReader(xmlStringBC), new JSONPointer("/"));
         System.out.println(jsonObject);
 
-        JSONObject jsonObject2 = XML.toJSONObject(xmlString);
+        JSONObject jsonObject2 = XML.toJSONObject(xmlStringBC);
 
         assertEquals(jsonObject2.toString(), jsonObject.toString());
     } 

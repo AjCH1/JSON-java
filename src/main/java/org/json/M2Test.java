@@ -22,23 +22,30 @@ public class M2Test {
             "    <street>Ave of Nowhere</street>\n" +
             "    <zipcode>92614</zipcode>\n" +
             "  </address>\n" +
-            "  <address>\n" +
-            "    <street>Somewhere</street>\n" +
-            "    <zipcode>92444444</zipcode>\n" +
-            "  </address>\n" +
-            "</contact>";
+              "</contact>";
         
 
             //Idea 1: modify String by extracting only the XML part needed to convert to JSON
+            //Problems: Difficulty identifying if path leads to JSONArray vs JSONObject in string
 
-            //parse function seems to loop through the entire string to the end (with exception of <? <!...)
+            //Idea 2: skip parsing until reach end of path (set false conditions in overloaded parse())
+            //Diffculty: Dealing with potential JSONArray index case 
 
             JSONObject test = new JSONObject();
             test.put("try", "this");
             //System.out.println(test);
             
+
+            //index-single
+            //no index
+            //parse <address> ... </address> As an array...?
+
+            JSONPointer pointer = new JSONPointer("/contact/address/street");
+            JSONObject testObj = XML.toJSONObject(xmlString);
+            System.out.println(pointer.queryFrom(testObj));
+
         try {
-            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address/street"));
+            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address"));
             System.out.println(jobj.toString(4)); 
         } catch (JSONException e) {
             //System.out.println(e);
