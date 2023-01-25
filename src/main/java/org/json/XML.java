@@ -1197,14 +1197,12 @@ public class XML {
                         } else if (token instanceof String) {
 
                             //ADDITION
-                            /* 
-                            if(pathStack.size() == 1)
-                              System.out.println("TAG: " + tagName + ", STRING CONTENT: " + pathStack.size() + ", STACK PEEK: " + reverseStack.peek());
-                            else 
-                             System.out.println("TAG: " + tagName + ", STRING CONTENT: " + token + ", LAST KEY: " + lastKey);
-                              */
                               System.out.println("TAG: " + tagName + ", STRING CONTENT: " + token + ", LAST KEY: " + lastKey + ", NESTED: " + isNested);
-                            //pathSet.add(tagName);
+                            
+                              if(pathMap.containsKey(tagName)){
+                                System.out.println("CURRENT STORAGE: " +  pathMap.get(tagName));
+                              }
+                              //pathSet.add(tagName);
                             
                             //ADDITION
                             //place to remove <tag> ..... <tag>
@@ -1255,9 +1253,17 @@ public class XML {
                                     //ADDITION
                                     //not at the last key yet so don't parse it
                                     System.out.println("STACK SIZE: " + pathStack.size() + ", TAGNAME: " + tagName);
-                                    if(pathStack.size() == 1 && !tagName.equals(lastKey) && isNested == false) {
-                                        return false;
+                                    
+                                    if(pathMap.containsKey(tagName)){
+                                         System.out.println("TAG: " + tagName + ", COUNT: " + pathMap.get(tagName));
+                                         if(pathMap.get(tagName) != -1){ //array case
+                                          pathMap.put(tagName, pathMap.get(tagName) - 1 );
+                                         }
                                     }
+                                    else if(pathStack.size() == 1 && !tagName.equals(lastKey) && isNested == false) 
+                                        return false;
+                               
+ 
                                       
                                      
                                     if (jsonObject.length() == 0) {
@@ -1300,8 +1306,11 @@ public class XML {
 
       while (x.more()) {
           x.skipPast("<");
-          if(x.more() || map.get(lastKey) == 0) {
+          if(x.more()) {
               //System.out.println("KEY: " + map.get(lastKey));
+              if(map.get(lastKey)== 0){
+                break;
+              }
                System.out.println(parsePath(x, jo, null, XMLParserConfiguration.ORIGINAL, stack, map, set, lastKey,isNested));
           }
       }
@@ -1346,8 +1355,10 @@ public class XML {
 
       for(int i = 1; i < pathWay.length; i++){
           if(pathWay[i].matches("^(0|[1-9][0-9]*)$")) {
-            String count = pathWay[i];
-            map.put(pathWay[i - 1],  Integer.parseInt(count)); //JSONArray
+            //if there is a stack that pushes according to array index, 
+            //then set count to 1
+            int count = 1;
+            map.put(pathWay[i - 1],  count); //JSONArray
           }
           else{
             map.put(pathWay[i], -1); //not an JSONArray

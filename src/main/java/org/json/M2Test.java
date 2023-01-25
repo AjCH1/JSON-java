@@ -70,7 +70,7 @@ public class M2Test {
             //System.out.println(pointer.queryFrom(testObj));
 
         try {
-            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/root/nick"));
+            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/root/address/1"));
             System.out.println(jobj.toString(4)); 
         } catch (JSONException e) {
             e.printStackTrace();
