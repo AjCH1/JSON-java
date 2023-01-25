@@ -6,7 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 
 public class M2Test2 {
-  
+  /* 
   public static void main(String[] args){
     StringBuilder bc = new StringBuilder(); //store XML file as a stringbuilder
 
@@ -29,4 +29,5 @@ public class M2Test2 {
     }
        
   }
+  */
 }

@@ -29,25 +29,26 @@ public class MilestoneTests {
 
     @Test
     public void handleEmptyXML() {
-
         String xmlStr = "";
         JSONObject jsonObject = XML.toJSONObject(new StringReader(xmlStr), new JSONPointer("/df"));
         assertTrue("jsonObject should be empty", jsonObject.isEmpty());
     }
 
     @Test
-    public void testXMLFileTask2_M2Test() throws Exception{
+    public void testXMLFileTask2_M2Test_ROOT() throws Exception{
         String xmlString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+
             "<contact>\n"+
+            "<root>\n" +
             "  <nick>Crista </nick>\n"+
             "  <name>Crista Lopes</name>\n" +
             "  <address>\n" +
             "    <street>Ave of Nowhere</street>\n" +
             "    <zipcode>92614</zipcode>\n" +
             "  </address>\n" +
+            " </root>\n"+
             "</contact>";
 
-        JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address/street"));      
+        JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact"));      
         JSONObject jobj2 = XML.toJSONObject(xmlString); //query
 
         assertEquals(jobj2.toString(), jobj.toString());

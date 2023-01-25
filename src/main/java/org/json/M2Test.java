@@ -13,15 +13,25 @@ public class M2Test {
             "  </address>\n" +
             "</contact>";
         
-      
+       
       xmlString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+
             "<contact>\n"+
+            "<contact2>\n"+
             "  <nick>Crista </nick>\n"+
+            "  <nick>Crista2 </nick>\n"+
+            "  <nick>Crista3 </nick>\n"+
             "  <name>Crista Lopes</name>\n" +
-            "  <address>\n" +
+            "  <address life=\"fd\">\n" +
             "    <street>Ave of Nowhere</street>\n" +
             "    <zipcode>92614</zipcode>\n" +
             "  </address>\n" +
+            "  <address>\n" +
+            "    <street>\n" + 
+            "       <tr>12345</tr>\n" +
+            "   </street>\n" +
+            "    <zipcode>12345</zipcode>\n" +
+            "  </address>\n" +
+            "</contact2>" +
               "</contact>";
         
 
@@ -31,40 +41,40 @@ public class M2Test {
             //Idea 2: skip parsing until reach end of path (set false conditions in overloaded parse())
             //Diffculty: Dealing with potential JSONArray index case 
 
-            JSONObject test = new JSONObject();
-            test.put("try", "this");
-            //System.out.println(test);
-            
 
+            
+            //NOTES
             //index-single
             //no index
             //parse <address> ... </address> As an array...?
+            // /contact/0 implies theres more than 1 <contact> tag
 
-            JSONPointer pointer = new JSONPointer("/contact/address/street");
-            JSONObject testObj = XML.toJSONObject(xmlString);
-            System.out.println(pointer.queryFrom(testObj));
+           // JSONPointer pointer = new JSONPointer("/contact/address");
+            //JSONObject testObj = XML.toJSONObject(xmlString);
+            //System.out.println(pointer.queryFrom(testObj));
 
         try {
-            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address"));
+            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address/1"));
             System.out.println(jobj.toString(4)); 
         } catch (JSONException e) {
-            //System.out.println(e);
+            e.printStackTrace();
         }
-/*
         System.out.println("-----------------------");
 
-
+        /* 
         //thought: try to traverse and modify the string first???
         //or use helper function once the entire JSON object has been parsed
         try {
             JSONObject replacement = XML.toJSONObject("<street>Ave of the Arts</street>\n");
             System.out.println("Given replacement: " + replacement);
-            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address/street/"), replacement);
-            System.out.println(jobj); 
+            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address/street"), replacement);
+            System.out.println(jobj.toString(4)); 
         } catch (JSONException e) {
             System.out.println(e);
         }
+
         */
+        
     }
 
 }
