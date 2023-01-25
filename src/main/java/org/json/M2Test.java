@@ -3,20 +3,24 @@ import java.io.StringReader;
 
 public class M2Test {
     public static void main(String[] args) {
-      String xmlString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+
+      String xmlString4 = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+
             "<contact>\n"+
             "  <nick>Crista </nick>\n"+
-            "  <name>Crista Lopes</name>\n" +
             "  <address>\n" +
             "    <street>Ave of Nowhere</street>\n" +
             "    <zipcode>92614</zipcode>\n" +
             "  </address>\n" +
+            "  <address>\n" +
+            "    <street>Ave of Nowhere22</street>\n" +
+            "    <zipcode>92614</zipcode>\n" +
+            "  </address>\n" +
+            "  <name>Crista Lopes</name>\n" +
             "</contact>";
         
        
-      xmlString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+
+      String xmlString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+
             "<contact>\n"+
-            "<contact2>\n"+
+            "<root>\n"+
             "  <nick>Crista </nick>\n"+
             "  <nick>Crista2 </nick>\n"+
             "  <nick>Crista3 </nick>\n"+
@@ -31,7 +35,19 @@ public class M2Test {
             "   </street>\n" +
             "    <zipcode>12345</zipcode>\n" +
             "  </address>\n" +
-            "</contact2>" +
+            "</root>\n" +
+              "</contact>";
+
+              String xmlString2 = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+
+              "<contact>\n"+
+              "<root>\n" +
+              "  <nick>Crista </nick>\n"+
+              "  <name>Crista Lopes</name>\n" +
+              "  <address>\n" +
+              "    <street>Ave of Nowhere</street>\n" +
+              "    <zipcode>92614</zipcode>\n" +
+              "  </address>\n" +
+              " </root>\n"+
               "</contact>";
         
 
@@ -54,7 +70,7 @@ public class M2Test {
             //System.out.println(pointer.queryFrom(testObj));
 
         try {
-            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address/1"));
+            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/root/nick"));
             System.out.println(jobj.toString(4)); 
         } catch (JSONException e) {
             e.printStackTrace();
