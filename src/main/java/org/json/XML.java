@@ -1000,7 +1000,7 @@ public class XML {
 
     /*OVERLOADED PARSE */
     private static boolean parsePath(XMLTokener x, JSONObject context, String name, XMLParserConfiguration config, 
-    Stack<String> pathStack, Map<String, Integer> pathMap, Set<String> pathSet, String lastKey, Boolean isNested)
+    Stack<String> pathStack, Map<String, Integer> pathMap, Set<String> pathSet, String lastKey, Boolean isNested, String nestedKey)
             throws JSONException {
         char c;
         int i;
@@ -1066,18 +1066,17 @@ public class XML {
             // Close tag </
             token = x.nextToken();
             
-            //System.out.println("END TOKEN: " + token + " NAME: " + name);
+            System.out.println("END TOKEN: " + token + " NAME: " + name);
           
             if (name == null) {
  
               //ADDITION
+              
               if(token != null && pathSet.contains(token)){
-                
                 if(  !pathSet.contains(lastKey)){
                   throw x.syntaxError("Mismatched close tag " + token);
                 }
-
-                return true;
+                  return true;
               }
               
           
@@ -1099,22 +1098,26 @@ public class XML {
 
         } 
         //ADDITION
-        //When there are at least 2 keys?
+        //When there are at least 2 keys in path?
         //keys removed from the stack (except the last one) are not parsed
+        /* 
         else if(pathStack.size() >= 2 && token.equals(pathStack.peek())){
             System.out.println("POP FROM STACK: " + token + ", CURRENT SIZE: " + pathStack.size());
             pathSet.add((String) token);
             pathStack.pop();
             return false;  
         }
+        */
         else {
 
             tagName = (String) token;
     
+            
             //ADDITION
             if(pathStack.size() == 1){
               pathSet.add(pathStack.peek());
             }
+            
 
             //System.out.println("TAGNAME: " + tagName);
 
@@ -1130,6 +1133,303 @@ public class XML {
                 // attribute = value
                 if (token instanceof String) {
                   
+                    string = (String) token;
+                    token = x.nextToken();
+                    
+
+                    if (token == EQ) {
+                        token = x.nextToken();
+                        if (!(token instanceof String)) {
+                            throw x.syntaxError("Missing value");
+                        }
+
+
+                        
+                        if (config.isConvertNilAttributeToNull()
+                                && NULL_ATTR.equals(string)
+                                && Boolean.parseBoolean((String) token)) {
+                            nilAttributeFound = true;
+                        } else if(config.getXsiTypeMap() != null && !config.getXsiTypeMap().isEmpty()
+                                && TYPE_ATTR.equals(string)) {
+                            xmlXsiTypeConverter = config.getXsiTypeMap().get(token);
+                        } else if (!nilAttributeFound) {
+
+                          System.out.println("EQUALS: " + string + ", TOKEN: " + token);
+
+                            jsonObject.accumulate(string,
+                                    config.isKeepStrings()
+                                            ? ((String) token)
+                                            : stringToValue((String) token));
+
+                                            System.out.println("JSONOBJECT: " + jsonObject);     
+                                            
+                             
+                        }
+                        token = null;
+                    } else {
+                        jsonObject.accumulate(string, "");
+                    }
+ 
+
+
+                } else if (token == SLASH) {
+                    // Empty tag <.../>
+                    if (x.nextToken() != GT) {
+                        throw x.syntaxError("Misshaped tag");
+                    }
+                    if (config.getForceList().contains(tagName)) {
+                        // Force the value to be an array
+                        if (nilAttributeFound) {
+                            context.append(tagName, JSONObject.NULL);
+                        } else if (jsonObject.length() > 0) {
+                            context.append(tagName, jsonObject);
+                        } else {
+                            context.put(tagName, new JSONArray());
+                        }
+                    } else {
+                        if (nilAttributeFound) {
+                            context.accumulate(tagName, JSONObject.NULL);
+                        } else if (jsonObject.length() > 0) {
+                            context.accumulate(tagName, jsonObject);
+                        } else {
+                            context.accumulate(tagName, "");
+                        }
+                    }
+                    return false;
+
+                } 
+                //ADDITION
+                else if(pathStack.size() >= 2 && tagName.equals(pathStack.peek()) ){
+                  System.out.println("POP FROM STACK: " + tagName + ", PERSONAL COUNT: " + pathMap.get(tagName) +", CURRENT SIZE: " + pathStack.size());
+                  pathSet.add((String) tagName);
+                  pathStack.pop();
+                  return false;  
+                }
+                
+                else if (token == GT) {
+                    // Content, between <...> and </...>
+
+                    for (;;) {
+                        token = x.nextContent();
+
+                        if (token == null) {
+                            if (tagName != null) {
+                                throw x.syntaxError("Unclosed tag " + tagName);
+                            }
+                            return false;
+                        } else if (token instanceof String) {
+
+                            //ADDITION
+                              System.out.println("TAG: " + tagName + ", STRING CONTENT: " + token + ", LAST KEY: " + lastKey + ", NESTED: " + isNested + ", NESTED TAG: " + nestedKey);
+                            
+                              if(pathMap.containsKey(tagName)){
+                                System.out.println("CURRENT STORAGE: " +  pathMap.get(tagName));
+                              }
+                              pathSet.add(tagName);
+                            
+                            if(!isNested && !tagName.equals(lastKey)){
+                              x.skipPast("<");
+                              x.skipPast(">");
+                              return false;
+                            }
+                             
+                            
+                             //ADDITION
+                            //place to remove <tag> ..... <tag>
+                            /* 
+                            if(tagName.equals("nick") || tagName.equals("name") ){
+                              x.skipPast("<");
+                              x.skipPast(">");
+                              return false;
+                            }
+                            */
+                          
+                            string = (String) token;
+                            if (string.length() > 0) {
+                                if(xmlXsiTypeConverter != null) {
+                                    jsonObject.accumulate(config.getcDataTagName(),
+                                            stringToValue(string, xmlXsiTypeConverter));
+                                } else {
+                                    jsonObject.accumulate(config.getcDataTagName(),
+                                            config.isKeepStrings() ? string : stringToValue(string));
+                                }
+                            }
+
+                        } else if (token == LT) {
+
+                          //System.out.println("NESTED CONTENT: " + tagName);
+                                                  
+                            // Nested element
+                            if (parsePath(x, jsonObject, tagName, config, pathStack, pathMap, pathSet, lastKey, true, tagName)) {
+                                if (config.getForceList().contains(tagName)) {
+                                    // Force the value to be an array
+                                    if (jsonObject.length() == 0) {
+                                        context.put(tagName, new JSONArray());
+                                    } else if (jsonObject.length() == 1
+                                            && jsonObject.opt(config.getcDataTagName()) != null) {
+                                        context.append(tagName, jsonObject.opt(config.getcDataTagName()));
+                                    } else {
+                                        context.append(tagName, jsonObject);
+                                    }
+                                } else {           
+                                    //ADDITION
+                                    //not at the last key yet so don't parse it
+                                    System.out.println("STACK SIZE: " + pathStack.size() + ", TAGNAME: " + tagName + ", CURRENT STACK: " + pathStack.size());
+                                    
+                                    
+                                    //if tagName is in the path
+                                    if(pathMap.containsKey(tagName)){
+                                         System.out.println("TAG: " + tagName + ", COUNT: " + pathMap.get(tagName));
+                                         if(pathMap.get(tagName) != -1){ 
+                                          //if the value isn't -1, then tagName has an array index 
+                                          //so tagName's value gets decremented by 1
+                                          pathMap.put(tagName, pathMap.get(tagName) - 1 );
+                                         }
+                                    }
+                                    else if(pathStack.size() == 1 && !tagName.equals(lastKey) && isNested == false) 
+                                        return false;
+                                    
+                                     
+                                    if (jsonObject.length() == 0) {
+                                        context.accumulate(tagName, "");
+                                    } else if (jsonObject.length() == 1
+                                            && jsonObject.opt(config.getcDataTagName()) != null) {
+                                        context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
+                                    } else {
+                                        context.accumulate(tagName, jsonObject);
+                                    }
+                                }
+                                
+                                return false;
+                            }
+                        }
+                    }
+                } else {
+                    throw x.syntaxError("Misshaped tag");
+                }
+            }
+        }
+    }
+
+    private static boolean parseOverload(XMLTokener x, JSONObject context, String name, XMLParserConfiguration config, 
+    Stack<String> pathStack, Map<String, Integer> pathMap, Set<String> pathSet, String lastKey, String nestedKey, Boolean isNested, Boolean canParse, Boolean isArray
+    , JSONObject contextCopy)
+            throws JSONException {
+        char c;
+        int i;
+        JSONObject jsonObject = null;
+        String string;
+        String tagName;
+        Object token;
+        XMLXsiTypeConverter<?> xmlXsiTypeConverter;
+
+        // Test for and skip past these forms:
+        // <!-- ... -->
+        // <! ... >
+        // <![ ... ]]>
+        // <? ... ?>
+        // Report errors for these forms:
+        // <>
+        // <=
+        // <<
+
+        token = x.nextToken();
+        // <!
+
+        if (token == BANG) {
+            c = x.next();
+            if (c == '-') {
+                if (x.next() == '-') {
+                    x.skipPast("-->");
+                    return false;
+                }
+                x.back();
+            } else if (c == '[') {
+                token = x.nextToken();
+                
+                if ("CDATA".equals(token)) {
+                    if (x.next() == '[') {
+                        string = x.nextCDATA();
+                        if (string.length() > 0) {
+                            context.accumulate(config.getcDataTagName(), string);
+                        }
+                        return false;
+                    }
+                }
+                throw x.syntaxError("Expected 'CDATA['");
+            }
+            i = 1;
+            do {
+                token = x.nextMeta();
+                
+                if (token == null) {
+                    throw x.syntaxError("Missing '>' after '<!'.");
+                } else if (token == LT) {
+                    i += 1;
+                } else if (token == GT) {
+                    i -= 1;
+                }
+            } while (i > 0);
+            return false;
+        } else if (token == QUEST) {
+            // <?
+            x.skipPast("?>");
+            return false;
+        } else if (token == SLASH) {
+            // Close tag </
+            token = x.nextToken();
+
+
+            System.out.println("CLOSING TOKEN: " + token + " NAME: " + name + ", NESTED KEY: " + nestedKey + ", NESTED KEY COUNT: " + pathMap.get(nestedKey));
+
+          
+
+          
+            if (name == null) {
+                //CHANGE
+                //case 1: check if tag exists in the path using the Map (since it is likely to have been deleted)
+                if(pathMap.containsKey(token))
+                  return true; //if return true, then we intend to end it early
+
+                throw x.syntaxError("Mismatched close tag " + token);
+            }
+            if (!token.equals(name)) {
+                throw x.syntaxError("Mismatched " + name + " and " + token);
+            }
+            if (x.nextToken() != GT) {
+                throw x.syntaxError("Misshaped close tag");
+            }
+
+            return true;
+
+        } else if (token instanceof Character) {
+            throw x.syntaxError("Misshaped tag");
+
+            // Open tag <
+            
+
+        } else {
+            tagName = (String) token;
+
+            System.out.println("TAGNAME: " + tagName);
+
+            if(pathStack.size() >=  1 &&  token.equals(pathStack.peek()) ){
+              pathStack.pop();
+              System.out.println("POP FROM STACK: " + token + ", TAG COUNT: " + pathMap.get(token) +", STACK SIZE: " + pathStack.size());
+            }
+
+            token = null;
+            jsonObject = new JSONObject();
+            boolean nilAttributeFound = false;
+            xmlXsiTypeConverter = null;
+
+            for (;;) {
+                if (token == null) {
+                    token = x.nextToken();
+                }
+                // attribute = value
+                if (token instanceof String) {
+     
                     string = (String) token;
                     token = x.nextToken();
                     
@@ -1184,7 +1484,17 @@ public class XML {
                     }
                     return false;
 
-                } else if (token == GT) {
+                } 
+                /* 
+                //CHANGE 
+                //helps check if path is valid 
+                else if(pathStack.size() > 1 && tagName.equals(pathStack.peek()) ){
+                  System.out.println("POP FROM STACK: " + tagName + ", TAG COUNT: " + pathMap.get(tagName) +", STACK SIZE: " + pathStack.size());
+                  pathStack.pop();
+                  return false;  
+                }
+                */
+                else if (token == GT) {
                     // Content, between <...> and </...>
                     for (;;) {
                         token = x.nextContent();
@@ -1195,32 +1505,47 @@ public class XML {
                             }
                             return false;
                         } else if (token instanceof String) {
-
-                            //ADDITION
-                              System.out.println("TAG: " + tagName + ", STRING CONTENT: " + token + ", LAST KEY: " + lastKey + ", NESTED: " + isNested);
-                            
-                              if(pathMap.containsKey(tagName)){
-                                System.out.println("CURRENT STORAGE: " +  pathMap.get(tagName));
-                              }
-                              //pathSet.add(tagName);
-                            
-                            //ADDITION
-                            //place to remove <tag> ..... <tag>
-                            /* 
-                            if(tagName.equals("nick") || tagName.equals("name") ){
-                              x.skipPast("<");
-                              x.skipPast(">");
-                              return false;
-                            }
-                            */
-
-                            if(!isNested && !tagName.equals(lastKey)){
-                              x.skipPast("<");
-                              x.skipPast(">");
-                              return false;
-                            }
-                            
+       
+                          System.out.println("TAG: " + tagName + ", STRING CONTENT: " + token + ", LAST KEY: " + lastKey + ", NESTED: " + isNested + ", NESTED: " + nestedKey);
                           
+                          if(pathStack.size() == 0 && tagName.equals(lastKey) && isNested == false){
+                            System.out.println("HEYA10");
+                            contextCopy.put(tagName, token);
+
+                            if(pathMap.get(lastKey) == -1){ //just a string
+                              pathMap.put(lastKey, pathMap.get(lastKey) - 1);
+                            }
+                            return true;
+                          }
+                          else{
+                            isArray = false;
+                          }
+                          
+                          /* 
+                          System.out.println(jsonObject);
+                          System.out.println(jsonObject.keySet());
+                          */
+
+
+
+                          //CHANGE
+
+                          /* 
+                          //< >....</  >
+                          if(tagName.equals(lastKey)){
+                            isArray = false;
+                          }
+                          if(pathMap.containsKey(lastKey) && pathMap.get(lastKey) == -1 && !isArray){
+                            if(!tagName.equals(lastKey)){
+                              x.skipPast("<");
+                              x.skipPast(">");
+                              return false;
+                            }
+                          }
+                                 */
+ 
+                          
+
                             string = (String) token;
                             if (string.length() > 0) {
                                 if(xmlXsiTypeConverter != null) {
@@ -1229,54 +1554,116 @@ public class XML {
                                 } else {
                                     jsonObject.accumulate(config.getcDataTagName(),
                                             config.isKeepStrings() ? string : stringToValue(string));
+                                     
                                 }
                             }
 
                         } else if (token == LT) {
 
-                          //System.out.println("NESTED CONTENT: " + tagName);
-                          
-                          
-                            // Nested element
-                            if (parsePath(x, jsonObject, tagName, config, pathStack, pathMap, pathSet, lastKey, true)) {
-                                if (config.getForceList().contains(tagName)) {
-                                    // Force the value to be an array
-                                    if (jsonObject.length() == 0) {
-                                        context.put(tagName, new JSONArray());
-                                    } else if (jsonObject.length() == 1
-                                            && jsonObject.opt(config.getcDataTagName()) != null) {
-                                        context.append(tagName, jsonObject.opt(config.getcDataTagName()));
-                                    } else {
-                                        context.append(tagName, jsonObject);
-                                    }
-                                } else {
-                                    //ADDITION
-                                    //not at the last key yet so don't parse it
-                                    System.out.println("STACK SIZE: " + pathStack.size() + ", TAGNAME: " + tagName);
-                                    
-                                    if(pathMap.containsKey(tagName)){
-                                         System.out.println("TAG: " + tagName + ", COUNT: " + pathMap.get(tagName));
-                                         if(pathMap.get(tagName) != -1){ //array case
-                                          pathMap.put(tagName, pathMap.get(tagName) - 1 );
-                                         }
-                                    }
-                                    else if(pathStack.size() == 1 && !tagName.equals(lastKey) && isNested == false) 
-                                        return false;
-                               
- 
-                                      
-                                     
-                                    if (jsonObject.length() == 0) {
-                                        context.accumulate(tagName, "");
-                                    } else if (jsonObject.length() == 1
-                                            && jsonObject.opt(config.getcDataTagName()) != null) {
-                                        context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
-                                    } else {
-                                        context.accumulate(tagName, jsonObject);
-                                    }
-                                }
+                          /* 
+                          //CHANGE
+                          //usually nested elements
+                          if(tagName.equals(lastKey)){           
+                            if(pathMap.get(tagName) >= 0)
+                                pathMap.put(tagName, -2); //updating value
+
+                            canParse = true; //hopefully applicable to only the last key if it is an array structure
+                            isArray = true;
+                          }
+                          */
+
+                          //START OF CHANGE -----
+                          // Nested element
+                          if (parseOverload(x, jsonObject, tagName, XMLParserConfiguration.ORIGINAL, pathStack , pathMap, pathSet , lastKey, tagName, true, canParse, isArray, contextCopy)) {
+                            System.out.println("STACK SIZE: " + pathStack.size() + ", TAGNAME: " + tagName + ", CURRENT STACK: " + pathStack.size() + ", COUNT: " + pathMap.get(tagName));
+                            
+                            if(pathMap.get(lastKey) == -2){
+                              return true; //quit parse function case
+                            }
+                            
+                            System.out.println(jsonObject);
+                            System.out.println(jsonObject.keySet());
+
+                            //if array index specified at the very end of the key path
+                            if(tagName.equals(lastKey) && pathMap.get(lastKey) >= 1){
+                              System.out.println("HEYA");
+                              if(pathMap.get(lastKey) == 1){
+                              
+                                if(jsonObject.keySet().contains("content"))
+                                  contextCopy.put(tagName, jsonObject.remove("content"));           
+                                else
+                                  contextCopy.put(tagName, jsonObject);
+
+                                pathMap.put(lastKey, -2); //early exit case
+                              }
+                              else{
+                                pathMap.put(lastKey, pathMap.get(lastKey) - 1);  
+                              }                     
+                            }
+                            
+                            //if no array index specified at the end of the key path
+                            if(tagName.equals(lastKey) && pathMap.get(lastKey) == -1){
+
+                              if(jsonObject.keySet().contains("content") && pathStack.size() == 0){
+                                System.out.println("HEYA2");
+
+                                System.out.println(pathMap.get(nestedKey));
+
+                                JSONObject temp = new JSONObject();
+                                  temp.put(tagName, jsonObject.remove("content"));
                                 
-                                return false;
+                                if(pathMap.get(nestedKey) == -1){
+                                  contextCopy.accumulate( tagName, temp.remove(tagName));
+                                }
+                                else if (pathMap.get(nestedKey) >= 1){
+                                  contextCopy.put( tagName, temp.remove(tagName));
+                                  pathMap.put(lastKey, -2); //exit
+                                }
+                                       
+                              }
+                              else if(isArray && pathStack.size() == 0){
+                                System.out.println("HEYA3");
+                                System.out.println(pathMap.get(nestedKey));
+
+                                if(pathMap.get(nestedKey) == null || pathMap.get(nestedKey) >= -1)
+                                  contextCopy.accumulate(tagName, jsonObject);
+                              }        
+                            }
+
+                            //End of change
+
+                            if (config.getForceList().contains(tagName)) {
+                                  // Force the value to be an array
+                                  if (jsonObject.length() == 0) {
+                                      context.put(tagName, new JSONArray());
+                                  } else if (jsonObject.length() == 1
+                                          && jsonObject.opt(config.getcDataTagName()) != null) {
+                                      context.append(tagName, jsonObject.opt(config.getcDataTagName()));
+                                  } else {
+                                      context.append(tagName, jsonObject);
+                                  }
+                              } else {
+
+                              //END OF CHANGE ----------------------------
+
+                                  /* 
+                                  //CHANGE
+                                  //if not in path...
+                                  if(!pathMap.containsKey(tagName) && !canParse){
+                                    return false;
+                                  }
+                                  */
+                                  if (jsonObject.length() == 0) {
+                                      context.accumulate(tagName, "");
+                                  } else if (jsonObject.length() == 1
+                                          && jsonObject.opt(config.getcDataTagName()) != null) {
+                                      context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
+                                  } else {
+                                      context.accumulate(tagName, jsonObject);
+                                  }
+                              }
+                              
+                              return false;
                             }
                         }
                     }
@@ -1300,21 +1687,33 @@ public class XML {
       Set<String> set = new HashSet<String>();
       String lastKey = getLastKey(path);
       Boolean isNested = false;
+      String nestedKey = "";
+
 
       getPathCountMap(map, path);
       getPathStack(stack, path, lastKey);
+
+      JSONObject copy = new JSONObject();
 
       while (x.more()) {
           x.skipPast("<");
           if(x.more()) {
               //System.out.println("KEY: " + map.get(lastKey));
-              if(map.get(lastKey)== 0){
+
+               //System.out.println(parsePath(x, jo, null, XMLParserConfiguration.ORIGINAL, stack, map, set, lastKey,isNested, nestedKey));
+              
+               if(map.get(lastKey) == -2){ //when the lastKey in the path is array-indexed
                 break;
               }
-               System.out.println(parsePath(x, jo, null, XMLParserConfiguration.ORIGINAL, stack, map, set, lastKey,isNested));
-          }
+                Boolean parsed = parseOverload(x, jo, null, XMLParserConfiguration.ORIGINAL, stack, map, set, lastKey, nestedKey, isNested, false, true, copy);
+                System.out.println(parsed);
+                if(parsed){
+                  break;
+                }
+                 
+              }
       }
-      return jo;
+      return copy;
     }
 
     private static String getLastKey(JSONPointer path){
@@ -1329,6 +1728,8 @@ public class XML {
 
     private static void getPathStack(Stack<String> stack, JSONPointer path, String lastKey){
       String[] pathWay = path.toString().split("/");
+
+      
       for(int i = pathWay.length - 1; i > 0; i--){
         //check if it is a number or a string
         //if get number n, get the stack topmost element and repeat it n + 1 times
@@ -1345,8 +1746,9 @@ public class XML {
           i = i - 1;
         }
         stack.push(pathWay[i]);
-        //System.out.println("STRING: " + pathWay[i]);     
+        System.out.println("STRING: " + pathWay[i]);     
       }
+
 
     }
 
@@ -1357,12 +1759,21 @@ public class XML {
           if(pathWay[i].matches("^(0|[1-9][0-9]*)$")) {
             //if there is a stack that pushes according to array index, 
             //then set count to 1
-            int count = 1;
+
+            int count = Integer.parseInt(pathWay[i]) + 1;
+
+            //System.out.println(pathWay[i-1] + " - " +pathWay[i]);
+            //int count = 1;
             map.put(pathWay[i - 1],  count); //JSONArray
           }
           else{
             map.put(pathWay[i], -1); //not an JSONArray
           }
+      }
+
+      //Add a map for the closed tag of the last key
+      if(pathWay.length > 1){
+        map.put("</" + getLastKey(path), 1);
       }
             
     }

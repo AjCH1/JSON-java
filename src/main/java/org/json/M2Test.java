@@ -16,22 +16,30 @@ public class M2Test {
             "  </address>\n" +
             "  <name>Crista Lopes</name>\n" +
             "</contact>";
-        
        
       String xmlString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+
             "<contact>\n"+
+            "<name>Apple</name>\n"+
             "<root>\n"+
-            "  <nick>Crista </nick>\n"+
-            "  <nick>Crista2 </nick>\n"+
-            "  <nick>Crista3 </nick>\n"+
-            "  <name>Crista Lopes</name>\n" +
-            "  <address life=\"fd\">\n" +
-            "    <street>Ave of Nowhere</street>\n" +
+            "   <nick>Crista </nick>\n"+
+            "   <nick>Crista1 </nick>\n"+
+            "   <nick>Crista2 </nick>\n"+
+            "  <address>\n" +
+            "    <street>AveA AAAA</street>\n" +
             "    <zipcode>92614</zipcode>\n" +
+            "    <tel>Bibi</tel>\n"+
+            "  </address>\n" +
+            "  <address>\n" +
+            "    <street>AveB BBBBB</street>\n" +
+            "    <zipcode>67890</zipcode>\n" +
+            "    <tel>Tony</tel>\n"+
             "  </address>\n" +
             "  <address>\n" +
             "    <street>\n" + 
-            "       <tr>12345</tr>\n" +
+            "       <tr>22222</tr>\n" +
+            "   </street>\n" +
+            "    <street>\n" + 
+            "       <tr>333333</tr>\n" +
             "   </street>\n" +
             "    <zipcode>12345</zipcode>\n" +
             "  </address>\n" +
@@ -70,7 +78,7 @@ public class M2Test {
             //System.out.println(pointer.queryFrom(testObj));
 
         try {
-            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/root/address/1"));
+            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/root/nick/2"));
             System.out.println(jobj.toString(4)); 
         } catch (JSONException e) {
             e.printStackTrace();
