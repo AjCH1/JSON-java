@@ -24,7 +24,7 @@ public class M2Test {
             "   <nick>Crista </nick>\n"+
             "   <nick>Crista1 </nick>\n"+
             "   <nick>Crista2 </nick>\n"+
-            "  <address>\n" +
+            "  <address life=\"fd\" life2=\"f22\">\n" +
             "    <street>AveA AAAA</street>\n" +
             "    <zipcode>92614</zipcode>\n" +
             "    <tel>Bibi</tel>\n"+
@@ -78,7 +78,7 @@ public class M2Test {
             //System.out.println(pointer.queryFrom(testObj));
 
         try {
-            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/root/nick/2"));
+            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/root/address/0/street"));
             System.out.println(jobj.toString(4)); 
         } catch (JSONException e) {
             e.printStackTrace();
