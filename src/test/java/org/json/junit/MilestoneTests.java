@@ -27,11 +27,75 @@ import org.junit.rules.TemporaryFolder;
 
 public class MilestoneTests {
 
-    @Test
-    public void handleEmptyXML() {
+    String xmlString = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"+
+    "<contact>\n"+
+    "  <nick>Crista </nick>\n"+
+    "  <name>Crista Lopes</name>\n" +
+    "  <address>\n" +
+    "    <street>Ave of Nowhere</street>\n" +
+    "    <zipcode>92614</zipcode>\n" +
+    "  </address>\n" +
+    "</contact>";
+  
+    @Test 
+    public void handleEmptyXML(){
         String xmlStr = "";
-        JSONObject jsonObject = XML.toJSONObject(new StringReader(xmlStr), new JSONPointer("/df"));
-        assertTrue("jsonObject should be empty", jsonObject.isEmpty());
+        try{
+          XML.toJSONObject(new StringReader(xmlStr), new JSONPointer(""));
+        }
+        catch(IllegalArgumentException e){
+          assertTrue("Empty path", true);
+        }
+
+    }
+
+    @Test
+    public void shouldHandleDoesNotStartWithRootSlash(){
+     boolean isCorrect = false;
+      try{
+        XML.toJSONObject(new StringReader(xmlString), new JSONPointer("contact"));
+      }
+      catch(IllegalArgumentException e){
+        isCorrect = true;
+      }
+
+      assertTrue("No root slash", isCorrect);
+    }
+
+
+    @Test
+    public void shouldHandleDoesNotEndWithRootSlash(){
+      boolean isCorrect = false;
+      try{
+        XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/"));
+      }
+      catch(IllegalArgumentException e){
+        isCorrect = true;
+      }
+
+      assertTrue("No end slash", isCorrect);
+    }
+
+    @Test
+    public void shouldHandleDoubles(){
+      try{
+        XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address/0.0"));
+        XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address/-2.5"));
+        XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address/1.25"));
+      }
+      catch(IllegalArgumentException e){
+        assertTrue("No double", true);
+      }
+    }
+
+    @Test
+    public void shouldHandleMoreThanOneDigitInPath(){
+      try{
+        XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/address/0/2"));
+      }
+      catch(IllegalArgumentException e){
+        assertTrue("too many digits in a row", true);
+      }
     }
 
     @Test
@@ -55,7 +119,7 @@ public class MilestoneTests {
     }
 
     @Test
-    public void testXMLFile() throws Exception{
+    public void testReadFromXMLFile() throws Exception{
        StringBuilder bc = new StringBuilder(); //store XML file as a stringbuilder
 
        BufferedReader br = new BufferedReader(new FileReader("src/test/java/org/json/junit/book.xml"));
@@ -67,10 +131,11 @@ public class MilestoneTests {
 
         String xmlStringBC = bc.toString();
 
-        JSONObject jsonObject = XML.toJSONObject(new StringReader(xmlStringBC), new JSONPointer("/"));
+        JSONObject jsonObject = XML.toJSONObject(new StringReader(xmlStringBC), new JSONPointer("/catalog"));
         System.out.println(jsonObject);
 
         JSONObject jsonObject2 = XML.toJSONObject(xmlStringBC);
+        
 
         assertEquals(jsonObject2.toString(), jsonObject.toString());
     } 
