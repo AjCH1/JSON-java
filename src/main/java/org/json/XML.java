@@ -1476,10 +1476,22 @@ public class XML {
                                 && TYPE_ATTR.equals(string)) {
                             xmlXsiTypeConverter = config.getXsiTypeMap().get(token);
                         } else if (!nilAttributeFound) {
-                            jsonObject.accumulate(string,
-                                    config.isKeepStrings()
-                                            ? ((String) token)
-                                            : stringToValue((String) token));
+
+                          
+                          if(pathStack.size() == 1 && string.equals(lastKey)){
+                            //System.out.println("EQUALS: " + string);
+                            pathStack.pop();
+                            pathMap.put(string, 0);
+                            jsonObject.accumulate(string, replacement.remove(string));
+                          }
+                          else{
+                            System.out.println(string + " " + jsonObject);
+                              jsonObject.accumulate(string,
+                                      config.isKeepStrings()
+                                              ? ((String) token)
+                                              : stringToValue((String) token));
+                          }
+                         
                         }
                         token = null;
                     } else {
@@ -1569,16 +1581,17 @@ public class XML {
                                                 System.out.println(tagName + " " + jsonObject + "KEY COUNT: " + pathMap.get(tagName));
                                             
                                                 //replace with the replacement JSONObject
-                                                if(pathMap.get(tagName) == -1){
+                                                if(pathMap.get(tagName) == -1){ //Not an array
+                                                  System.out.println("replace this2");
                                                   context.accumulate(lastKey, replacement.remove(lastKey));
                                                   pathMap.put(tagName, -2);
                                                 }
-                                                else if(pathMap.get(tagName) == 1){
+                                                else if(pathMap.get(tagName) == 1){ //is an array
                                                   System.out.println("replace this");
                                                   context.accumulate(lastKey, replacement.remove(lastKey));
                                                   pathMap.put(tagName, 0);
                                                 }
-                                                else if (pathMap.get(tagName) != -2){
+                                                else if (pathMap.get(tagName) != -2){ //get the original values instead of replacement
                                                   System.out.println("Not the right index to replace");
                                                   if(pathMap.get(tagName) > 1)
                                                     pathMap.put(tagName, pathMap.get(tagName) - 1);
@@ -1588,7 +1601,7 @@ public class XML {
                                                 
                                               }
                                               else{
-                                                if(tagName.equals(lastKey))
+                                                if(tagName.equals(lastKey) && pathMap.get(tagName) > 0)
                                                   pathMap.put(tagName, pathMap.get(tagName) - 1);
 
                                                 context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
@@ -1602,17 +1615,17 @@ public class XML {
                                         System.out.println(tagName + " " + jsonObject);
                        
                                         //replace with the replacement JSONObject
-                                        if(pathMap.get(tagName) == -1){ //is an array
+                                        if(pathMap.get(tagName) == -1){ //Not an array
                                           System.out.println("replace this");
                                           context.accumulate(lastKey, replacement.remove(lastKey));
                                           pathMap.put(tagName, -2);
                                         }
-                                        else if(pathMap.get(tagName) == 1){
+                                        else if(pathMap.get(tagName) == 1){ //is an array
                                           System.out.println("replace this");
                                           context.accumulate(lastKey, replacement.remove(lastKey));
                                           pathMap.put(tagName, 0);
                                         }
-                                        else if (pathMap.get(tagName) != -2){
+                                        else if (pathMap.get(tagName) != -2){ //get the rest of the values
                                           System.out.println("Not the right index to replace");
                                           if(pathMap.get(tagName) > 1)
                                             pathMap.put(tagName, pathMap.get(tagName) - 1);
@@ -1621,7 +1634,7 @@ public class XML {
                                         }
                                       }
                                       else{
-                                        if(tagName.equals(lastKey))
+                                        if(tagName.equals(lastKey) && pathMap.get(tagName) > 0)
                                           pathMap.put(tagName, pathMap.get(tagName) - 1);
                                         
                                         context.accumulate(tagName, jsonObject);

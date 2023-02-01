@@ -33,6 +33,7 @@ public class M2Test {
             "    <street>AveB BBBBB</street>\n" +
             "    <zipcode>67890</zipcode>\n" +
             "    <tel>Tony</tel>\n"+
+            "    <life>ap</life>\n"+
             "  </address>\n" +
             "  <address>\n" +
             "    <street>\n" + 
@@ -91,10 +92,11 @@ public class M2Test {
 
         
         try {
-            JSONObject replacement = XML.toJSONObject("<street>Ave of the Arts</street>\n");
+            JSONObject replacement = XML.toJSONObject("<life>Ave of the Arts</life>\n");
             System.out.println("Given replacement: " + replacement);
-            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/root/address/2/street/0"), replacement);
+            JSONObject jobj = XML.toJSONObject(new StringReader(xmlString), new JSONPointer("/contact/root/address/1/life"), replacement);
             System.out.println(jobj.toString(4)); 
+            
         } catch (JSONException e) {
             System.out.println(e);
         }
