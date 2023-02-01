@@ -307,7 +307,6 @@ public class XML {
             token = x.nextToken();
             
             //System.out.println("END TOKEN: " + token + " NAME: " + name);
-
           
             if (name == null) {
                 throw x.syntaxError("Mismatched close tag " + token);
@@ -329,8 +328,6 @@ public class XML {
 
         } else {
             tagName = (String) token;
-
-            //System.out.println("TAGNAME: " + tagName);
 
             token = null;
             jsonObject = new JSONObject();
@@ -1068,7 +1065,7 @@ public class XML {
             // Close tag </
             token = x.nextToken();
 
-            System.out.println("CLOSING TOKEN: " + token + " last Key: " + lastKey + ", NESTED KEY: " + nestedKey + ", NESTED KEY COUNT: " + pathMap.get(nestedKey));
+            //System.out.println("CLOSING TOKEN: " + token + " last Key: " + lastKey + ", NESTED KEY: " + nestedKey + ", NESTED KEY COUNT: " + pathMap.get(nestedKey));
  
             if (name == null) {
                 //CHANGE
@@ -1098,10 +1095,18 @@ public class XML {
         } else {
             tagName = (String) token;
 
-            System.out.println("TAGNAME: " + tagName);
+            //System.out.println("TAGNAME: " + tagName);
 
-            if(pathStack.size() >=  1 &&  token.equals(pathStack.peek()) ){
-
+            //find tag that is after the lastKey and quit, helpful after an array of unknown length (lastKey = -1 in pathMap)
+            //check if the stack is 0, nestedKey is in the path (but before the lastKey)
+            if(pathStack.size() == 0 && !tagName.equals(lastKey) && !nestedKey.equals(lastKey) && pathMap.containsKey(nestedKey)
+            && pathMap.get(lastKey) == -1){
+              System.out.println("SKIP PAST Possible tag: " + tagName);
+              pathMap.put(lastKey, -2); //EXIT EARLY CONDITION
+              return true;
+            }
+            //remove the current path from stack
+            else if(pathStack.size() >=  1 &&  token.equals(pathStack.peek()) ){
               if(isNested){
                 if(pathMap.containsKey(nestedKey))
                   pathStack.pop();
@@ -1110,7 +1115,7 @@ public class XML {
                 pathStack.pop();
               }
               
-              System.out.println("POP FROM STACK: " + token + ", TAG COUNT: " + pathMap.get(token) +", STACK SIZE: " + pathStack.size());
+              //System.out.println("POP FROM STACK: " + token + ", TAG COUNT: " + pathMap.get(token) +", STACK SIZE: " + pathStack.size());
             }
 
             token = null;
@@ -1135,19 +1140,22 @@ public class XML {
                             throw x.syntaxError("Missing value");
                         }
 
-                        System.out.println("EQUALS TOKEN: " + token + ", TAG NAME: " + tagName + ", NESTED: " + string);
+                        //System.out.println("EQUALS TOKEN: " + token + ", TAG NAME: " + tagName + ", NESTED: " + string);
 
-                        if(string.equals(lastKey)){
+                        if(pathStack.size() == 1){
+                          if(string.equals(lastKey)){
                           if(isNested){
                             if(pathMap.containsKey(nestedKey))
                               pathStack.pop();
                           }
 
-                          contextCopy.put(string, token);
+                            contextCopy.put(string, token);
 
-                          pathMap.put(lastKey, -2); //exit
-                          return true;
+                            pathMap.put(lastKey, -2); //exit
+                            return true;
+                          }
                         }
+                        
 
                         if (config.isConvertNilAttributeToNull()
                                 && NULL_ATTR.equals(string)
@@ -1209,10 +1217,12 @@ public class XML {
                             return false;
                         } else if (token instanceof String) {
        
-                          System.out.println("TAG: " + tagName + ", STRING CONTENT: " + token + ", LAST KEY: " + lastKey + ", NESTED: " + isNested + ", NESTED: " + nestedKey);
+                          //System.out.println("TAG: " + tagName + ", STACK CONTENT: " + token + ", LAST KEY: " + lastKey + ", NESTED: " + isNested + ", NESTED: " + nestedKey);
+                          
+                      
                           
                           if(pathStack.size() == 0 && tagName.equals(lastKey) && isNested == false){
-                            System.out.println("HEYA10");
+                            //System.out.println("HEYA10");
                             contextCopy.put(tagName, token);
 
                             if(pathMap.get(lastKey) == -1){ //just a string
@@ -1248,43 +1258,48 @@ public class XML {
                           if (parse(x, jsonObject, tagName, XMLParserConfiguration.ORIGINAL, pathStack , pathMap, pathSet , lastKey, tagName, true, canParse, isArray, contextCopy)) {
                             
                             //START OF CHANGE -----
-                            System.out.println("STACK SIZE: " + pathStack.size() + ", TAGNAME: " + tagName + ", CURRENT STACK: " + pathStack.size() + ", COUNT: " + pathMap.get(tagName));
+                            //System.out.println("STACK SIZE: " + pathStack.size() + ", TAGNAME: " + tagName + ", CURRENT STACK: " + pathStack.size() + ", COUNT: " + pathMap.get(lastKey) + "NESTED KEY: " + nestedKey);
                             
-                            //QUITING EARLY OUT OF PARSE
+
+                            //exit early
+                            if(pathStack.size() == 0 && !tagName.equals(lastKey) && !nestedKey.equals(lastKey) && pathMap.containsKey(nestedKey)
+                            && pathMap.get(lastKey) == -1){
+                              //System.out.println("SKIP PAST Possible tag: " + tagName);
+                              pathMap.put(lastKey, -2); //EXIT EARLY CONDITION
+                              return true;
+                            }
+
+                            //QUITING EARLY OUT OF PARSE CASE
                             if(pathMap.get(lastKey) == -2){
                               return true; 
                             }
-                            
-                            System.out.println(jsonObject);
-                            System.out.println(jsonObject.keySet());
+                            //System.out.println(jsonObject);
+                            //System.out.println(jsonObject.keySet());
 
                             //if array index specified at the very end of the key path
-                            if(tagName.equals(lastKey) && pathMap.get(lastKey) >= 1){
-                              System.out.println("HEYA");
-                              if(pathMap.get(lastKey) == 1){
-                              
-                                if(jsonObject.keySet().contains("content"))
-                                  contextCopy.put(tagName, jsonObject.remove("content"));           
-                                else
-                                  contextCopy.put(tagName, jsonObject);
+                            if(pathStack.size() == 0 && tagName.equals(lastKey) && pathMap.get(lastKey) >= 1){
+                              //System.out.println("HEYA");
 
-                                pathMap.put(lastKey, -2); //early exit case
-                              }
-                              else{
-                                pathMap.put(lastKey, pathMap.get(lastKey) - 1);  
-                              }                     
+                              //if pathStack.size() is 0, then at index
+                              if(jsonObject.keySet().contains("content"))
+                                contextCopy.put(tagName, jsonObject.remove("content"));           
+                              else
+                                contextCopy.put(tagName, jsonObject);
+
+                              pathMap.put(lastKey, -2); //early exit case
+                    
                             }
                             
                             //if no array index specified at the end of the key path
-                            if(tagName.equals(lastKey) && pathMap.get(lastKey) == -1){
+                            if(pathStack.size() == 0 && tagName.equals(lastKey) && pathMap.get(lastKey) == -1){
 
                               if(jsonObject.keySet().contains("content") && pathStack.size() == 0){
-                                System.out.println("HEYA2");
+                                //System.out.println("HEYA2");
 
-                                System.out.println(pathMap.get(nestedKey));
+                                //System.out.println(pathMap.get(nestedKey) + " " + isArray);
 
                                 JSONObject temp = new JSONObject();
-                                  temp.put(tagName, jsonObject.remove("content"));
+                                temp.put(tagName, jsonObject.remove("content"));
                                 
                                 if(pathMap.containsKey(nestedKey) && pathMap.get(nestedKey) == -1){
                                   contextCopy.accumulate( tagName, temp.remove(tagName));
@@ -1296,8 +1311,8 @@ public class XML {
                                        
                               }
                               else if(isArray && pathStack.size() == 0){
-                                System.out.println("HEYA3");
-                                System.out.println(pathMap.get(nestedKey));
+                                //System.out.println("HEYA3");
+                                //System.out.println(pathMap.get(nestedKey));
 
                                 if(pathMap.get(nestedKey) == null || pathMap.get(nestedKey) >= -1)
                                   contextCopy.accumulate(tagName, jsonObject);
@@ -1350,7 +1365,7 @@ public class XML {
     
     /**---- Milestone 2 Overloaded Parse Function 2 ----*/
     private static boolean parse(XMLTokener x, JSONObject context, String name, XMLParserConfiguration config,
-    Stack<String> pathStack, Map<String, Integer> pathMap, String lastKey, JSONObject replacement) throws JSONException {
+    Stack<String> pathStack, Map<String, Integer> pathMap, String lastKey, String nestedKey, JSONObject replacement) throws JSONException {
         char c;
         int i;
         JSONObject jsonObject = null;
@@ -1439,11 +1454,11 @@ public class XML {
         } else {
             tagName = (String) token;
 
-            System.out.println("TAGNAME: " + tagName);
+            //System.out.println("TAGNAME: " + tagName);
 
             if(pathStack.size() >=  1 &&  tagName.equals(pathStack.peek()) ){
               pathStack.pop();
-              System.out.println("POP FROM STACK: " + tagName + ", TAG COUNT: " + pathMap.get(token) +", STACK SIZE: " + pathStack.size());
+              //System.out.println("POP FROM STACK REPLACEMENT: " + tagName + ", TAG COUNT: " + pathMap.get(token) +", STACK SIZE: " + pathStack.size());
             }
 
             token = null;
@@ -1481,11 +1496,11 @@ public class XML {
                           if(pathStack.size() == 1 && string.equals(lastKey)){
                             //System.out.println("EQUALS: " + string);
                             pathStack.pop();
-                            pathMap.put(string, 0);
-                            jsonObject.accumulate(string, replacement.remove(string));
+                            pathMap.put(string, -2);
+                            jsonObject.accumulate(string, replacement);
                           }
                           else{
-                            System.out.println(string + " " + jsonObject);
+                            //System.out.println(string + " " + jsonObject);
                               jsonObject.accumulate(string,
                                       config.isKeepStrings()
                                               ? ((String) token)
@@ -1553,11 +1568,9 @@ public class XML {
 
 
                             // Nested element
-                            if (parse(x, jsonObject, tagName, config, pathStack, pathMap, lastKey, replacement)) {
+                            if (parse(x, jsonObject, tagName, config, pathStack, pathMap, lastKey, tagName, replacement)) {
                                 //CHANGE
-                                System.out.println("STACK SIZE: " + pathStack.size() + ", TAGNAME: " + tagName + ", CURRENT STACK: " + pathStack.size() + ", COUNT: " + pathMap.get(tagName));
-
-
+                                //System.out.println("STACK SIZE: " + pathStack.size() + ", TAGNAME: " + tagName + ", CURRENT STACK: " + pathStack.size() + ", COUNT: " + pathMap.get(tagName) + ", NESTED KEY : " + nestedKey);
 
                                 if (config.getForceList().contains(tagName)) {
                                     // Force the value to be an array
@@ -1575,68 +1588,116 @@ public class XML {
                                         context.accumulate(tagName, "");
                                     } else if (jsonObject.length() == 1
                                             && jsonObject.opt(config.getcDataTagName()) != null) {
+
+                                              /* 
+                                              //find path error
+                                              if(pathStack.size() == 0 && tagName.equals(lastKey)){
+                                                if(nestedKey != "" && !pathMap.containsKey(nestedKey)){
+                                                  throw new JSONException("Path is not realized");
+                                                }
+                                              }
+                                        */
                                         
-                                              if(pathStack.size()  == 0 && tagName.equals(lastKey)) {
-                                                System.out.println("HERE2");
-                                                System.out.println(tagName + " " + jsonObject + "KEY COUNT: " + pathMap.get(tagName));
+                                              //String based 
+                                              if(pathStack.size()  == 0 && tagName.equals(lastKey) && pathMap.get(tagName) != -1 ) {
+                                                //System.out.println("HERE2");
+                                                //System.out.println(tagName + " " + jsonObject + ", KEY COUNT: " + pathMap.get(tagName));
                                             
-                                                //replace with the replacement JSONObject
-                                                if(pathMap.get(tagName) == -1){ //Not an array
-                                                  System.out.println("replace this2");
-                                                  context.accumulate(lastKey, replacement.remove(lastKey));
-                                                  pathMap.put(tagName, -2);
+                                                if(pathMap.get(tagName) == 1 || pathMap.get(tagName) == 0){ //is an array
+                                                  //System.out.println("replace this02");
+                                                 
+                                                  context.accumulate(lastKey, replacement);    
+                                                  pathMap.put(lastKey, -2); //don't replace the rest of array indexes afterwards
                                                 }
-                                                else if(pathMap.get(tagName) == 1){ //is an array
-                                                  System.out.println("replace this");
-                                                  context.accumulate(lastKey, replacement.remove(lastKey));
-                                                  pathMap.put(tagName, 0);
-                                                }
-                                                else if (pathMap.get(tagName) != -2){ //get the original values instead of replacement
-                                                  System.out.println("Not the right index to replace");
-                                                  if(pathMap.get(tagName) > 1)
-                                                    pathMap.put(tagName, pathMap.get(tagName) - 1);
-        
+                                                else if(pathMap.get(tagName) == -2){ //get the original values instead of replacement
+                                                  //System.out.println("Not the right index to replace for string");
+
                                                   context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
                                                 }
+                                                else if(pathMap.get(tagName) == -3){
+                                                  //System.out.println("PATH KEY COUNT FOR " + tagName + ": " + pathMap.containsKey(nestedKey));
+
+                                                  if(!tagName.equals(lastKey) && pathMap.get(lastKey) == -3){
+
+                                                    //System.out.println("PATH1");
+                                                    context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
+                                                  }
+                                                  else if(tagName.equals(lastKey) && !tagName.equals(nestedKey)){
+                                                    //System.out.println("PATH2");
+
+
+                                                    context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
+                                                  }
+                                                  
+                                                }
+
+                                                //END OF REPLACE
                                                 
                                               }
                                               else{
                                                 if(tagName.equals(lastKey) && pathMap.get(tagName) > 0)
                                                   pathMap.put(tagName, pathMap.get(tagName) - 1);
 
-                                                context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
+                                      
+                                                if(pathStack.size() == 0 && tagName.equals(lastKey)){
+                                                                                            
+                                                  //if(pathMap.containsKey(nestedKey)) System.out.println("NESTED KEY: " + pathMap.get(nestedKey));
+                                                  //System.out.println("TAGNAME CONTEXT for " + tagName + ":: " + nestedKey);
+
+                                                  if(!pathMap.containsKey(nestedKey) || pathMap.get(nestedKey) != -1){
+                                                      pathMap.put(lastKey, -2);
+                                                  }
+
+                                                  context.put(lastKey, replacement); 
+                                                
+                                                } 
+                                                else{
+                                                  context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
+                                                }
+  
                                               }
 
                                       
                                     } else {
-
+                                      
+                                    
                                       if(pathStack.size()  == 0 && tagName.equals(lastKey)) {
-                                        System.out.println("HERE1 " + ", STACK: " +pathStack.size());
-                                        System.out.println(tagName + " " + jsonObject);
+                                        //System.out.println("HERE1" + ", STACK: " +pathStack.size());
+                                        //System.out.println(tagName + " " + jsonObject);
+
+                                        if(pathMap.containsKey(tagName))
+                                          //System.out.println("HERE1 Replace: " + pathMap.get(tagName));
                        
                                         //replace with the replacement JSONObject
                                         if(pathMap.get(tagName) == -1){ //Not an array
-                                          System.out.println("replace this");
-                                          context.accumulate(lastKey, replacement.remove(lastKey));
-                                          pathMap.put(tagName, -2);
-                                        }
-                                        else if(pathMap.get(tagName) == 1){ //is an array
-                                          System.out.println("replace this");
-                                          context.accumulate(lastKey, replacement.remove(lastKey));
-                                          pathMap.put(tagName, 0);
-                                        }
-                                        else if (pathMap.get(tagName) != -2){ //get the rest of the values
-                                          System.out.println("Not the right index to replace");
-                                          if(pathMap.get(tagName) > 1)
-                                            pathMap.put(tagName, pathMap.get(tagName) - 1);
+                                          //System.out.println("replace this");
 
+                                          context.accumulate(lastKey, replacement);
+                                          pathMap.put(lastKey, -3);
+
+                                        }
+                                        else if(pathMap.get(tagName) == 1 || pathMap.get(tagName) == 0){ //is an array
+                                          //System.out.println("replace this01");
+
+                                          context.accumulate(lastKey, replacement);
+                                          pathMap.put(lastKey, -2);
+                                        }
+                                        else if(pathMap.get(lastKey) == -2){
+                                          //System.out.println("replace none");
                                           context.accumulate(tagName, jsonObject);
                                         }
+
+                                  
                                       }
                                       else{
                                         if(tagName.equals(lastKey) && pathMap.get(tagName) > 0)
                                           pathMap.put(tagName, pathMap.get(tagName) - 1);
-                                        
+                                        else if(!tagName.equals(lastKey) && pathMap.get(lastKey) == -3){
+                                          
+                                          //System.out.println("After -3: " + tagName);
+                                          //pathMap.put(lastKey, -2);
+                                        }
+                                                                                  
                                         context.accumulate(tagName, jsonObject);
                                       }
                                     }
@@ -1744,7 +1805,7 @@ public class XML {
 
             int count = Integer.parseInt(pathWay[i]) + 1;
 
-            //System.out.println(pathWay[i-1] + " - " +pathWay[i]);
+            //System.out.println(pathWay[i-1] + " - " +count);
             //int count = 1;
             map.put(pathWay[i - 1],  count); //JSONArray
           }
@@ -1773,6 +1834,7 @@ public class XML {
       String[] pathWay = keyPathString.split("/");
       List<String> arr = new ArrayList<String>(Arrays.asList(pathWay));
       String lastKey = getLastKey(path); //reference to the very last path 
+      String nestedKey = ""; //reference to the very last path 
 
       arr.remove(0);
 
@@ -1793,13 +1855,9 @@ public class XML {
       while (x.more()) {
           x.skipPast("<");
           if(x.more()) {
-              parse(x, jo, null, XMLParserConfiguration.ORIGINAL, stack, map, lastKey, replacement);
+              parse(x, jo, null, XMLParserConfiguration.ORIGINAL, stack, map, lastKey, nestedKey, replacement);
           }
       }
-
-      //replace object
-      //updateSubObjectInJSON(jo, replacement, arr);
-
 
       if(stack.size() > 0){
         throw new JSONException("Path is not realized");
