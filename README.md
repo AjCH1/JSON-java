@@ -17,6 +17,12 @@ Files created: <br>
 &emsp;Milestone2Tests.java (Path: src\test\java\org\json\junit\Milestone2Tests.java) <br>
 Files updated: <br>
 &emsp;XML.java (Path: src\main\java\org\json\XML.java) <br>
+<br></strong>
+
+# Milestone 3 Note
+When modifying the keys in the client code, you first have to convert the XML file to a JSONObject. After that, you need to traverse through it again using recursion to get all the keys and change them. 
+
+When modifying the keys inside the library, you can overload the parse function so that you can pass in a function that can modify the keys. The performance is better because you don't have to traverse again since the modification is done during parsing. 
 
 # Build Instructions
 
